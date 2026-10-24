@@ -22,7 +22,7 @@ function makeQ(item, level) {
 
 /* ---------- App state & tabs ---------- */
 const S = { tab: 'practice', level: 'N5', q: null, score: 0, total: 0, streak: 0, answered: false, mock: null };
-const TABS = [['practice', 'Vocabulary Practice'], ['mock', 'Mock Test'], ['roadmap', 'Roadmap']];
+const TABS = [['practice', 'Vocabulary Practice'], ['mock', 'Mock Test'], ['jp', '日本語 MCQ'], ['roadmap', 'Roadmap']];
 const $ = s => document.querySelector(s);
 
 function renderTabs() {
@@ -34,6 +34,7 @@ function goTab(id) {
   S.tab = id; renderTabs();
   if (id === 'practice') { nextPractice(); }
   else if (id === 'mock') { renderMockStart(); }
+  else if (id === 'jp') { startJP(); }
   else { renderRoadmap(); }
 }
 
@@ -145,7 +146,7 @@ function finishMock() {
 function renderRoadmap() {
   const items = [
     ['✅', 'Vocabulary MCQ (N5 + N4)', 'Live'],
-    ['✅', 'Vocabulary mock test', 'Live'], ['✅', 'AI usage coach (Gemma 4 / Ollama)', 'Live'],
+    ['✅', 'Vocabulary mock test', 'Live'], ['✅', 'All-Japanese MCQ (ことば・漢字)', 'Live'], ['✅', 'AI usage coach (Gemma 4 / Ollama)', 'Live'],
     ['📘', 'Grammar', 'Planned'], ['🔤', 'Particles (は, が, を, に, で...)', 'Planned'],
     ['📖', 'Reading comprehension', 'Planned'], ['🎧', 'Listening', 'Planned'], ['🎌', 'JFT-Basic mock tests', 'Planned']
   ];
@@ -198,5 +199,31 @@ Keep every Japanese example at ${item.lv} level.`);
 }
 
 $('#count').textContent = VOCAB.length;
+
+/* ---------- All-Japanese MCQ (question + options in Japanese) ---------- */
+function startJP() { S.jp = { qs: shuffle(window.MONDAI), i: 0, score: 0, done: false }; renderJP(); }
+function renderJP() {
+  const j = S.jp;
+  if (j.i >= j.qs.length) {
+    $('#view').innerHTML = `<div class="jp bg-white border border-slate-200 rounded-2xl p-6 text-center flex flex-col gap-3">
+      <p class="text-sm text-slate-500">けっか</p><p class="text-5xl font-bold text-rose-600">${j.score} / ${j.qs.length}</p>
+      <button onclick="startJP()" class="self-center bg-rose-600 text-white px-5 py-2.5 rounded-lg font-medium">もういちど</button></div>`; return;
+  }
+  const q = j.qs[j.i], ord = shuffle(q.o.map((t, k) => k)); j.cur = { q, ord, done: false };
+  const stem = esc(q.q).replace(/［(.+?)］/g, '<u class="font-bold decoration-2 decoration-rose-500">$1</u>').replace(/（　）/g, '<span class="inline-block w-16 border-b-2 border-slate-400 align-baseline">&nbsp;</span>');
+  $('#view').innerHTML = `<div class="jp bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4">
+    <div class="flex justify-between text-sm font-semibold"><span>もんだい ${j.i + 1} / ${j.qs.length}</span><span>せいかい ${j.score}</span></div>
+    <p class="text-2xl leading-relaxed py-4">${stem}</p>
+    <div class="grid gap-2" id="jp-opts">${ord.map((k, n) => optBtn(esc(q.o[k]), n, 'answerJP')).join('')}</div>
+    <div id="jp-fb" class="flex justify-end"></div></div>`;
+}
+function answerJP(n) {
+  const c = S.jp.cur; if (c.done) return; c.done = true;
+  const btns = document.querySelectorAll('#jp-opts .opt'), right = c.ord.indexOf(c.q.a), ok = n === right;
+  btns.forEach(b => b.disabled = true);
+  btns[right].classList.add('!bg-emerald-500', 'text-white', '!border-emerald-600');
+  if (ok) S.jp.score++; else btns[n].classList.add('!bg-rose-500', 'text-white', '!border-rose-600');
+  $('#jp-fb').innerHTML = `<button onclick="S.jp.i++; renderJP()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg font-medium">${S.jp.i + 1 >= S.jp.qs.length ? 'けっかを見る' : 'つぎへ →'}</button>`;
+}
 
 renderTabs(); nextPractice();
